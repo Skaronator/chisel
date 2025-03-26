@@ -35,7 +35,7 @@ import (
 type Remote struct {
 	LocalHost, LocalPort, LocalProto    string
 	RemoteHost, RemotePort, RemoteProto string
-	Socks, Reverse, Stdio               bool
+	Socks, Reverse, Stdio, ProxyProto   bool
 }
 
 const revPrefix = "R:"
@@ -128,6 +128,9 @@ func DecodeRemote(s string) (*Remote, error) {
 	}
 	if r.Stdio && r.Reverse {
 		return nil, errors.New("stdio cannot be reversed")
+	}
+	if r.ProxyProto && !r.Reverse {
+		return nil, errors.New("cannot use proxy protocol for a non-reversed remote")
 	}
 	return r, nil
 }
