@@ -38,7 +38,7 @@ builds:
       - goos: windows
         goarch: arm
 nfpms:
-  - maintainer: "https://github.com/jpillora"
+  - maintainer: "https://github.com/Skaronator"
     formats:
       - deb
       - rpm
@@ -58,9 +58,12 @@ checksum:
   extra_files:
     - glob: '{{ envOrDefault "RELEASE_ARCHIVES_GLOB" "" }}'
 release:
+  github:
+    owner: Skaronator
+    name: chisel
   draft: true
   replace_existing_draft: true
-  prerelease: auto
+  prerelease: true
   # In CI, these are the archives produced and checked by the non-publishing
   # preflight. The publishing run uses --skip=archive, so it cannot replace
   # them with rebuilt, unvalidated archives.
@@ -76,15 +79,13 @@ changelog:
 # ko builds and publishes the versioned multi-arch index directly. Its local
 # registry serves a six-platform scratch base containing only CA roots; CI
 # builds it from .github/ko-base.Dockerfile before the publishing run.
-# Floating tags (latest / X / X.Y) are still promoted only when the draft
-# GitHub release is published (release stage 2).
+# Floating tags (latest / X / X.Y) are only promoted by manual dispatch.
 kos:
   - id: chisel
     build: chisel
     main: .
     repositories:
-      - ghcr.io/jpillora/chisel
-      - docker.io/jpillora/chisel
+      - ghcr.io/skaronator/chisel
     tags:
       - "{{ .Version }}"
     base_image: localhost:5000/chisel-ko-base:local

@@ -2,8 +2,8 @@ name: CI
 on:
   pull_request: {}
   push:
-    branches: [master]
-    tags: ["v*"]
+    branches: [master, proxy-protocol-1.12.0-custom-build]
+    tags: ["v*-skn"]
 permissions:
   contents: read
 jobs:
@@ -43,18 +43,17 @@ jobs:
       - name: Test
         run: go test -v ./...
   # ================
-  # RELEASE STAGE 1 (on push "v*" tag, after merging to master)
+  # CUSTOM RELEASE (on push "v*-skn" tag)
   # Builds and verifies the versioned archives without credentials, then
   # creates a DRAFT GitHub release containing those exact archives and the
   # packages built by the publishing run. It also pushes version-tagged
-  # multi-arch Docker images via GoReleaser. Floating Docker tags (latest /
-  # X / X.Y) are not touched here — publishing the draft release triggers
-  # promote.yml (stage 2) which retags them.
+  # multi-arch GHCR images via GoReleaser. Floating Docker tags (latest /
+  # X / X.Y) are not touched. Promotion is an explicit manual operation.
   # ================
   release:
     name: Release
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [test, codespell]
+    if: github.repository == 'Skaronator/chisel' && startsWith(github.ref, 'refs/tags/v') && endsWith(github.ref, '-skn')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -135,11 +134,6 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: jpillora
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Publish with GoReleaser
         uses: goreleaser/goreleaser-action@v6
         with:
@@ -151,9 +145,7 @@ jobs:
           # GoReleaser OSS v2.17.0 cannot publish a previous dist directory.
           # Rebuild binaries for packages/ko images, but preserve the verified
           # archives by skipping this run's archive pipe.
-          # Stable 1.12 follows three release candidates, so an automatically
-          # generated changelog would only contain the final post-RC commits.
-          args: release --clean --config .github/goreleaser.yml --skip=archive --release-notes=.github/releases/1.12.0.md
+          args: release --clean --config .github/goreleaser.yml --skip=archive --release-notes=.github/releases/1.12.0-skn.md
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_ARCHIVES_GLOB: release/archives/*

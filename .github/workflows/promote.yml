@@ -1,26 +1,23 @@
 name: Promote
 # ================
-# RELEASE STAGE 2 (on publishing the draft GitHub release)
+# OPTIONAL MANUAL PROMOTION
 # Promotes the version-tagged multi-arch Docker manifests pushed by
-# stage 1 (ci.yml release job) to latest / X / X.Y on GHCR and
-# Docker Hub. Pure manifest copy — nothing is rebuilt.
+# ci.yml to latest / X / X.Y on the fork's GHCR repository.
+# Pure manifest copy — nothing is rebuilt. Publishing a release does not
+# automatically change floating tags.
 # ================
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag to promote (e.g. v1.12.0)'
+        description: 'Custom release tag to promote (e.g. v1.12.0-skn)'
         required: true
 permissions:
   contents: read
 jobs:
   docker-tags:
     name: Promote Docker tags
-    # prereleases keep only their version tag; manual dispatch is an
-    # explicit operator override
-    if: ${{ github.event_name == 'workflow_dispatch' || !github.event.release.prerelease }}
+    if: github.repository == 'Skaronator/chisel'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -32,22 +29,21 @@ jobs:
           registry: ghcr.io
           username: ${{ github.repository_owner }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Login to Docker Hub
-        uses: docker/login-action@v4
-        with:
-          username: jpillora
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
       - name: Retag version manifests to latest / major / major.minor
         env:
-          TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          TAG: ${{ inputs.tag }}
         run: |
           set -euo pipefail
+          if [[ ! "$TAG" =~ ^v[0-9]+\.[0-9]+\.[0-9]+-skn$ ]]; then
+            echo "::error::Expected a custom release tag such as v1.12.0-skn"
+            exit 1
+          fi
           VERSION="${TAG#v}"
           MAJOR="${VERSION%%.*}"
           REST="${VERSION#*.}"
           MINOR="${REST%%.*}"
           echo "promoting ${VERSION} -> latest, ${MAJOR}, ${MAJOR}.${MINOR}"
-          for repo in ghcr.io/jpillora/chisel docker.io/jpillora/chisel; do
+          for repo in ghcr.io/skaronator/chisel; do
             docker buildx imagetools create \
               --tag "${repo}:latest" \
               --tag "${repo}:${MAJOR}" \
